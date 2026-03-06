@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ECW Healthcare Analytics Dashboard – Chaitanya Padamata</title>
+<meta name="description" content="eClinicalWorks (ECW) Healthcare Analytics Dashboard – Clinical, Operational, Financial & Grant Reporting">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#F8FAFC;color:#1E293B;font-size:14px;line-height:1.6}
+#root{min-height:100vh}
+@media print{body{background:#fff}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useMemo}=React;
+
+const C={sky:"#0EA5E9",sky2:"#0284C7",skyLight:"#E0F2FE",skyBg:"#F0F9FF",dark:"#1E293B",sub:"#475569",light:"#94A3B8",border:"#E2E8F0",green:"#10B981",greenBg:"#DCFCE7",red:"#EF4444",redBg:"#FEE2E2",amber:"#F59E0B",amberBg:"#FEF3C7",purple:"#8B5CF6",purpleBg:"#EDE9FE",bg:"#F8FAFC",white:"#FFFFFF"};
+
+const facilityData={"All Facilities":{id:"all"},"Main Clinic":{id:"main"},"East Satellite":{id:"east"},"Mobile Unit":{id:"mobile"}};
+const months=["Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun"];
+
+const genData=(fac)=>{
+  const s=fac==="all"?1:fac==="main"?0.55:fac==="east"?0.3:0.15;
+  return{
+    totalPatients:Math.round(12847*s),totalVisits:Math.round(34219*s),uniqueProviders:Math.round(24*(fac==="all"?1:s+0.3)),
+    claimsSubmitted:Math.round(28456*s),claimsDenied:Math.round(2134*s),reimbursed:Math.round(2847000*s),
+    avgReimbursement:108.42,denialRate:fac==="mobile"?9.2:fac==="east"?7.8:7.1,
+    udsVisits:Math.round(31200*s),udsPatientsServed:Math.round(11450*s),
+    grantKPIs:{diabetesScreening:78.3,bpControl:72.1,colorectalScreening:64.8,cervicalScreening:71.2,tobaccoCessation:83.5,depressionScreening:76.9},
+    visitsByMonth:months.map((m,i)=>({month:m,visits:Math.round((2200+Math.sin(i*0.8)*600+150*(i%3))*s)})),
+    visitsByType:[
+      {type:"Primary Care",pct:42,count:Math.round(14372*s)},{type:"Behavioral Health",pct:18,count:Math.round(6159*s)},
+      {type:"Dental",pct:15,count:Math.round(5133*s)},{type:"Pediatric",pct:12,count:Math.round(4106*s)},
+      {type:"Prenatal/OB",pct:8,count:Math.round(2738*s)},{type:"Other",pct:5,count:Math.round(1711*s)}
+    ],
+    demographics:{
+      race:[{label:"American Indian/AN",pct:38,count:Math.round(4882*s)},{label:"Hispanic/Latino",pct:27,count:Math.round(3469*s)},{label:"White",pct:15,count:Math.round(1927*s)},{label:"Black/African Am.",pct:11,count:Math.round(1413*s)},{label:"Asian/Pacific Isl.",pct:5,count:Math.round(642*s)},{label:"Other/Unknown",pct:4,count:Math.round(514*s)}],
+      age:[{label:"0–17",pct:22},{label:"18–34",pct:28},{label:"35–54",pct:26},{label:"55–64",pct:14},{label:"65+",pct:10}],
+      insurance:[{label:"Medicaid",pct:44},{label:"Uninsured",pct:23},{label:"Medicare",pct:15},{label:"Private",pct:12},{label:"Other",pct:6}]
+    },
+    recon:{ecwRecords:Math.round(34219*s),warehouseRecords:Math.round(34198*s),matchRate:99.94,exceptions:Math.round(21*s),lastRun:"2026-03-01",status:"Passed"},
+    topProviders:[
+      {name:"Dr. Martinez",visits:Math.round(3842*s),pct:11.2},{name:"Dr. Chen",visits:Math.round(3215*s),pct:9.4},
+      {name:"Dr. Redhawk",visits:Math.round(2987*s),pct:8.7},{name:"Dr. Patel",visits:Math.round(2654*s),pct:7.8},
+      {name:"Dr. Johnson",visits:Math.round(2341*s),pct:6.8}
+    ]
+  };
+};
+
+const MetricCard=({label,value,sub,color,icon})=>(
+  <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:"16px 18px",borderTop:`3px solid ${color||C.sky}`}}>
+    <div style={{fontSize:11,color:C.light,textTransform:"uppercase",letterSpacing:0.8,fontWeight:600,marginBottom:4}}>{icon} {label}</div>
+    <div style={{fontSize:26,fontWeight:800,color:C.dark}}>{value}</div>
+    {sub&&<div style={{fontSize:11,color:C.sub,marginTop:2}}>{sub}</div>}
+  </div>
+);
+
+const BarChart=({data,labelKey,valueKey,color})=>{
+  const mx=Math.max(...data.map(d=>d[valueKey]));
+  return(<div style={{display:"flex",flexDirection:"column",gap:6}}>
+    {data.map((d,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
+      <div style={{width:110,fontSize:11,color:C.sub,textAlign:"right",flexShrink:0}}>{d[labelKey]}</div>
+      <div style={{flex:1,background:C.skyBg,borderRadius:4,height:20,position:"relative",overflow:"hidden"}}>
+        <div style={{width:`${(d[valueKey]/mx)*100}%`,background:color||C.sky,height:"100%",borderRadius:4,transition:"width 0.5s"}}/>
+      </div>
+      <div style={{width:55,fontSize:11,fontWeight:600,color:C.dark,textAlign:"right"}}>{d[valueKey]>999?d[valueKey].toLocaleString():d[valueKey]}</div>
+    </div>))}
+  </div>);
+};
+
+const MiniBar=({value,target,color})=>(
+  <div style={{flex:1,background:"#F1F5F9",borderRadius:4,height:14,position:"relative"}}>
+    <div style={{width:`${Math.min(value,100)}%`,background:color||(value>=target?C.green:C.amber),height:"100%",borderRadius:4}}/>
+    <div style={{position:"absolute",right:4,top:0,fontSize:10,fontWeight:700,lineHeight:"14px",color:C.dark}}>{value}%</div>
+  </div>
+);
+
+const tabList=["Overview","Clinical & UDS","Financial","Data Quality"];
+
+function App(){
+  const[facility,setFacility]=useState("All Facilities");
+  const[tab,setTab]=useState("Overview");
+  const[period,setPeriod]=useState("FY 2025–26");
+  const data=useMemo(()=>genData(facilityData[facility].id),[facility]);
+
+  return(
+    <div style={{fontFamily:"'Inter',system-ui,sans-serif",background:C.bg,minHeight:"100vh"}}>
+      <div style={{background:`linear-gradient(135deg,${C.dark},#334155)`,color:"#fff",padding:"20px 28px 16px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12,maxWidth:1100,margin:"0 auto"}}>
+          <div>
+            <div style={{fontSize:11,color:C.light,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>eClinicalWorks (ECW) Data Source</div>
+            <div style={{fontSize:22,fontWeight:800}}>Healthcare Analytics Dashboard</div>
+            <div style={{fontSize:13,color:C.skyLight,marginTop:2}}>Clinical · Operational · Financial · Grant & Regulatory Reporting</div>
+          </div>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            <select value={facility} onChange={e=>setFacility(e.target.value)} style={{padding:"6px 12px",borderRadius:6,border:"none",fontSize:12,fontWeight:600,background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer"}}>
+              {Object.keys(facilityData).map(f=><option key={f} value={f} style={{color:"#000"}}>{f}</option>)}
+            </select>
+            <select value={period} onChange={e=>setPeriod(e.target.value)} style={{padding:"6px 12px",borderRadius:6,border:"none",fontSize:12,fontWeight:600,background:"rgba(255,255,255,0.15)",color:"#fff",cursor:"pointer"}}>
+              <option style={{color:"#000"}}>FY 2025–26</option><option style={{color:"#000"}}>FY 2024–25</option>
+            </select>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:0,marginTop:16,maxWidth:1100,margin:"16px auto 0"}}>
+          {tabList.map(t=>(<button key={t} onClick={()=>setTab(t)} style={{padding:"8px 18px",fontSize:12,fontWeight:600,border:"none",cursor:"pointer",background:tab===t?C.sky:"transparent",color:tab===t?"#fff":C.light,borderRadius:tab===t?"6px 6px 0 0":0,transition:"all .2s"}}>{t}</button>))}
+        </div>
+      </div>
+
+      <div style={{padding:"20px 28px 40px",maxWidth:1100,margin:"0 auto"}}>
+
+        {tab==="Overview"&&(<>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+            <MetricCard icon="👥" label="Total Patients" value={data.totalPatients.toLocaleString()} sub="Unique patients from ECW" color={C.sky}/>
+            <MetricCard icon="📋" label="Total Visits" value={data.totalVisits.toLocaleString()} sub="ECW encounter records" color={C.green}/>
+            <MetricCard icon="🏥" label="Providers" value={data.uniqueProviders} sub="Active in ECW system" color={C.purple}/>
+            <MetricCard icon="💰" label="Reimbursed" value={`$${(data.reimbursed/1e6).toFixed(2)}M`} sub={`Avg $${data.avgReimbursement}/visit`} color={C.amber}/>
+          </div>
+          <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:20,marginBottom:16}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.dark,marginBottom:14}}>📊 Monthly Visit Volume — ECW Encounter Data</div>
+            <div style={{display:"flex",alignItems:"flex-end",gap:6,height:140}}>
+              {data.visitsByMonth.map((d,i)=>{const max=Math.max(...data.visitsByMonth.map(v=>v.visits));return(
+                <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                  <div style={{fontSize:9,color:C.sub,fontWeight:600}}>{d.visits.toLocaleString()}</div>
+                  <div style={{width:"100%",background:`linear-gradient(180deg,${C.sky},${C.sky2})`,borderRadius:"4px 4px 0 0",height:`${(d.visits/max)*110}px`,transition:"height 0.4s"}}/>
+                  <div style={{fontSize:10,color:C.light}}>{d.month}</div>
+                </div>);})}
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+            <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:20}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.dark,marginBottom:14}}>🩺 Visits by Service Type</div>
+              <BarChart data={data.visitsByType} labelKey="type" valueKey="count" color={C.sky}/>
+            </div>
+            <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:20}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.dark,marginBottom:14}}>👨‍⚕️ Top Providers — ECW Utilization</div>
+              <BarChart data={data.topProviders} labelKey="name" valueKey="visits" color={C.purple}/>
+            </div>
+          </div>
+        </>)}
+
+        {tab==="Clinical & UDS"&&(<>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+            <MetricCard icon="📋" label="UDS Reportable Visits" value={data.udsVisits.toLocaleString()} sub="HRSA-qualifying encounters from ECW" color={C.green}/>
+            <MetricCard icon="👥" label="UDS Patients Served" value={data.udsPatientsServed.toLocaleString()} sub="Unduplicated patient count" color={C.sky}/>
+          </div>
+          <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:20,marginBottom:16}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.dark,marginBottom:4}}>📈 UDS / HRSA Clinical Quality Measures</div>
+            <div style={{fontSize:11,color:C.light,marginBottom:16}}>Grant KPI tracking — ECW clinical data extraction | Target: 70%</div>
+            {Object.entries(data.grantKPIs).map(([key,val])=>{
+              const labels={diabetesScreening:"Diabetes Screening",bpControl:"BP Control",colorectalScreening:"Colorectal Screening",cervicalScreening:"Cervical Cancer Screening",tobaccoCessation:"Tobacco Cessation Counseling",depressionScreening:"Depression Screening"};
+              return(<div key={key} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                <div style={{width:170,fontSize:12,color:C.sub,textAlign:"right"}}>{labels[key]}</div>
+                <MiniBar value={val} target={70}/>
+                <div style={{width:40,fontSize:11,fontWeight:600,color:val>=70?C.green:C.amber}}>{val>=70?"✓ Met":"⚠ Gap"}</div>
+              </div>);
+            })}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+            <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:20}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.dark,marginBottom:12}}>🏛 Race / Ethnicity</div>
+              {data.demographics.race.map((d,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:i<data.demographics.race.length-1?`1px solid ${C.border}`:"none"}}>
+                <span style={{fontSize:11,color:C.sub}}>{d.label}</span><span style={{fontSize:11,fontWeight:700,color:C.dark}}>{d.pct}%</span>
+              </div>))}
+            </div>
+            <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:20}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.dark,marginBottom:12}}>📅 Age Distribution</div>
+              {data.demographics.age.map((d,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                <div style={{width:40,fontSize:11,color:C.sub}}>{d.label}</div><MiniBar value={d.pct} target={0} color={C.sky}/>
+              </div>))}
+            </div>
+            <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:20}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.dark,marginBottom:12}}>🏦 Insurance / Payer Mix</div>
+              {data.demographics.insurance.map((d,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                <div style={{width:60,fontSize:11,color:C.sub}}>{d.label}</div><MiniBar value={d.pct} target={0} color={C.purple}/>
+              </div>))}
+            </div>
+          </div>
+        </>)}
+
+        {tab==="Financial"&&(<>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
+            <MetricCard icon="📄" label="Claims Submitted" value={data.claimsSubmitted.toLocaleString()} sub="From ECW billing module" color={C.sky}/>
+            <MetricCard icon="❌" label="Claims Denied" value={data.claimsDenied.toLocaleString()} sub={`${data.denialRate}% denial rate`} color={C.red}/>
+            <MetricCard icon="💵" label="Total Reimbursed" value={`$${(data.reimbursed/1e6).toFixed(2)}M`} sub="Year-to-date" color={C.green}/>
+            <MetricCard icon="📊" label="Avg per Visit" value={`$${data.avgReimbursement}`} sub="Reimbursement rate" color={C.amber}/>
+          </div>
+          <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:20,marginBottom:16}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.dark,marginBottom:14}}>💰 Monthly Revenue Trend — ECW Claims Data</div>
+            <div style={{display:"flex",alignItems:"flex-end",gap:6,height:130}}>
+              {data.visitsByMonth.map((d,i)=>{const rev=d.visits*data.avgReimbursement;const maxRev=Math.max(...data.visitsByMonth.map(v=>v.visits*data.avgReimbursement));return(
+                <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                  <div style={{fontSize:8,color:C.sub,fontWeight:600}}>${(rev/1000).toFixed(0)}K</div>
+                  <div style={{width:"100%",background:`linear-gradient(180deg,${C.green},#059669)`,borderRadius:"4px 4px 0 0",height:`${(rev/maxRev)*100}px`,transition:"height 0.4s"}}/>
+                  <div style={{fontSize:10,color:C.light}}>{d.month}</div>
+                </div>);})}
+            </div>
+          </div>
+          <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:20}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.dark,marginBottom:14}}>⚠️ Top Denial Reasons — ECW Billing Extract</div>
+            {[{reason:"Missing/Invalid Authorization",pct:28},{reason:"Coding Error (CPT/ICD Mismatch)",pct:22},{reason:"Eligibility/Coverage Issue",pct:19},{reason:"Duplicate Claim",pct:14},{reason:"Timely Filing Exceeded",pct:10},{reason:"Other",pct:7}].map((d,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                <div style={{width:200,fontSize:11,color:C.sub}}>{d.reason}</div>
+                <div style={{flex:1,background:"#FEE2E2",borderRadius:4,height:16,position:"relative"}}>
+                  <div style={{width:`${d.pct}%`,background:C.red,height:"100%",borderRadius:4,opacity:0.8}}/>
+                </div>
+                <div style={{width:70,fontSize:11,fontWeight:600,color:C.dark,textAlign:"right"}}>{Math.round(data.claimsDenied*d.pct/100)} ({d.pct}%)</div>
+              </div>))}
+          </div>
+        </>)}
+
+        {tab==="Data Quality"&&(<>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
+            <MetricCard icon="🗄" label="ECW Source Records" value={data.recon.ecwRecords.toLocaleString()} sub="eClinicalWorks extract" color={C.sky}/>
+            <MetricCard icon="🏢" label="Warehouse Records" value={data.recon.warehouseRecords.toLocaleString()} sub="Post-ETL validated" color={C.purple}/>
+            <MetricCard icon="✅" label="Match Rate" value={`${data.recon.matchRate}%`} sub="Source-to-warehouse" color={C.green}/>
+            <MetricCard icon="⚠️" label="Exceptions" value={data.recon.exceptions} sub={`Last run: ${data.recon.lastRun}`} color={data.recon.exceptions>30?C.red:C.amber}/>
+          </div>
+          <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:20,marginBottom:16}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.dark,marginBottom:14}}>🔍 Monthly Data Reconciliation — ECW ↔ Warehouse</div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead><tr style={{background:C.skyBg,borderBottom:`2px solid ${C.border}`}}>
+                  {["Month","ECW Records","Warehouse","Matched","Exceptions","Match %","Status"].map(h=>(
+                    <th key={h} style={{padding:"8px 12px",textAlign:"left",fontWeight:700,color:C.dark,fontSize:11}}>{h}</th>))}
+                </tr></thead>
+                <tbody>
+                  {months.slice(0,9).map((m,i)=>{const ecw=Math.round(data.visitsByMonth[i].visits*1.02);const wh=ecw-Math.round(2+i%3);const exc=ecw-wh;const pct=((wh/ecw)*100).toFixed(2);return(
+                    <tr key={m} style={{borderBottom:`1px solid ${C.border}`}}>
+                      <td style={{padding:"7px 12px",fontWeight:600}}>{m} 2025</td>
+                      <td style={{padding:"7px 12px"}}>{ecw.toLocaleString()}</td>
+                      <td style={{padding:"7px 12px"}}>{wh.toLocaleString()}</td>
+                      <td style={{padding:"7px 12px",color:C.green,fontWeight:600}}>{wh.toLocaleString()}</td>
+                      <td style={{padding:"7px 12px",color:exc>3?C.amber:C.green,fontWeight:600}}>{exc}</td>
+                      <td style={{padding:"7px 12px",fontWeight:700}}>{pct}%</td>
+                      <td style={{padding:"7px 12px"}}><span style={{background:pct>99.8?C.greenBg:C.amberBg,color:pct>99.8?"#166534":"#92400E",padding:"2px 8px",borderRadius:4,fontSize:10,fontWeight:700}}>{pct>99.8?"✓ Passed":"⚠ Review"}</span></td>
+                    </tr>);})}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:20}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.dark,marginBottom:14}}>🛡 Automated Validation Rules — ECW Data Quality Framework</div>
+            {[{rule:"Patient ID referential integrity",scope:"All ECW tables",freq:"Every ETL run",pass:"99.98%"},
+              {rule:"Null check — required clinical fields",scope:"Encounters, Vitals",freq:"Every ETL run",pass:"99.95%"},
+              {rule:"Duplicate encounter detection",scope:"Encounters",freq:"Daily",pass:"100%"},
+              {rule:"Provider NPI validation",scope:"Providers",freq:"Weekly",pass:"99.91%"},
+              {rule:"ICD-10 / CPT code validation",scope:"Claims, Billing",freq:"Every ETL run",pass:"99.87%"},
+              {rule:"Date range sanity check",scope:"All dated records",freq:"Every ETL run",pass:"100%"},
+              {rule:"Cross-facility schema alignment",scope:"Multi-site ECW",freq:"Monthly",pass:"99.94%"}
+            ].map((r,i)=>(<div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr 0.6fr",gap:8,padding:"6px 0",borderBottom:i<6?`1px solid ${C.border}`:"none",fontSize:11,alignItems:"center"}}>
+              <div style={{fontWeight:600,color:C.dark}}>{r.rule}</div>
+              <div style={{color:C.sub}}>{r.scope}</div>
+              <div style={{color:C.sub}}>{r.freq}</div>
+              <div style={{fontWeight:700,color:C.green,textAlign:"right"}}>{r.pass}</div>
+            </div>))}
+          </div>
+        </>)}
+
+        <div style={{marginTop:24,padding:"16px 20px",background:C.skyBg,borderRadius:10,border:`1px solid ${C.border}`,textAlign:"center"}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.dark}}>Data Source: eClinicalWorks (ECW) EHR · Visualized in Tableau & Power BI · ETL via Azure Data Factory & Python</div>
+          <div style={{fontSize:11,color:C.sub,marginTop:4}}>Chaitanya Padamata · 913-219-0006 · chaitanyapadamata1111@gmail.com</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<App/>,document.getElementById("root"));
+</script>
+</body>
+</html>
